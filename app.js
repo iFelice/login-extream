@@ -54,7 +54,27 @@ app.get('/api/session/status/:code', (req, res) => {
   res.json(session);
 });
 
-// Gestione rotte rimanenti (Compatibile con Express 5)
+// 4. PROXY Xtream API (Bypassa CORS e Mixed Content)
+app.get('/api/proxy', async (req, res) => {
+  const { server, username, password, action, category_id } = req.query;
+  if (!server || !username || !password) {
+    return res.status(400).json({ error: 'Parametri mancanti (server, username, password)' });
+  }
+
+  let targetUrl = `${server}/player_api.php?username=${username}&password=${password}`;
+  if (action) targetUrl += `&action=${action}`;
+  if (category_id) targetUrl += `&category_id=${category_id}`;
+
+  try {
+    const apiRes = await fetch(targetUrl);
+    const data = await apiRes.json();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'Impossibile contattare il server IPTV', details: err.message });
+  }
+});
+
+// Gestione rotte rimanenti
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
