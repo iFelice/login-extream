@@ -3,7 +3,7 @@ const path = require('path');
 
 const app = express();
 
-// Abilita i permessi CORS in modo nativo senza la libreria 'cors'
+// Middleware CORS nativo
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
@@ -54,8 +54,8 @@ app.get('/api/session/status/:code', (req, res) => {
   res.json(session);
 });
 
-// Serve index.html per qualsiasi altra rotta
-app.get('*', (req, res) => {
+// Gestione rotte rimanenti (Compatibile con Express 5)
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
