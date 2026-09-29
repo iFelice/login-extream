@@ -1,5 +1,7 @@
 const express = require('express');
 const path = require('path');
+const https = require('https');
+const http = require('http');
 
 const app = express();
 
@@ -54,24 +56,35 @@ app.get('/api/session/status/:code', (req, res) => {
   res.json(session);
 });
 
-// 4. PROXY Xtream API (Bypassa CORS e Mixed Content)
-app.get('/api/proxy', async (req, res) => {
+// 4. PROXY Xtream API Nativo (Compatibile al 100% con qualsiasi Node.js)
+app.get('/api/proxy', (req, res) => {
   const { server, username, password, action, category_id } = req.query;
   if (!server || !username || !password) {
     return res.status(400).json({ error: 'Parametri mancanti (server, username, password)' });
   }
 
-  let targetUrl = `${server}/player_api.php?username=${username}&password=${password}`;
+  let targetUrl = `${server.replace(/\/$/, '')}/player_api.php?username=${username}&password=${password}`;
   if (action) targetUrl += `&action=${action}`;
   if (category_id) targetUrl += `&category_id=${category_id}`;
 
-  try {
-    const apiRes = await fetch(targetUrl);
-    const data = await apiRes.json();
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: 'Impossibile contattare il server IPTV', details: err.message });
-  }
+  const client = targetUrl.startsWith('https') ? https : http;
+
+  const proxyReq = client.get(targetUrl, (apiRes) => {
+    let data = '';
+    apiRes.on('data', (chunk) => { data += chunk; });
+    apiRes.on('end', () => {
+      try {
+        const json = JSON.parse(data);
+        res.json(json);
+      } catch (e) {
+        res.status(500).json({ error: 'Risposta non JSON dal server IPTV', raw: data.substring(0, 150) });
+      }
+    });
+  });
+
+  proxyReq.on('error', (err) => {
+    res.status(500).json({ error: 'Errore di connessione al server IPTV', details: err.message });
+  });
 });
 
 // Gestione rotte rimanenti
